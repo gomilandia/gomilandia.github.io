@@ -4,7 +4,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test src/gummyPhysics.test.mjs"
   },
   "name": "frontend",
   "private": true,
@@ -14,7 +15,8 @@
     "@tailwindcss/cli": "^4.3.4",
     "@tailwindcss/vite": "^4.3.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -30,5 +32,8 @@
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.4",
     "vite": "^8.3.5"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

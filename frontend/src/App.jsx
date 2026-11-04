@@ -1,4 +1,4 @@
-import React from 'react';
+import GummyRain from './GummyRain.jsx';
 
 // Datos de los paquetes para actualizar fácilmente
 const PACKAGES = [
@@ -31,7 +31,7 @@ const PACKAGES = [
 export default function App() {
   // Configura tu número de WhatsApp aquí (con código de país, ej: 52 para México)
   const whatsappNumber = "521234567890"; 
-  const whatsappLink = `https://wa.me{whatsappNumber}?text=Hola!%20Me%20interesa%20una%20cotizacion%20para%20una%20barra%20de%20gomitas%20y%20snacks.`;
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=Hola!%20Me%20interesa%20una%20cotizacion%20para%20una%20barra%20de%20gomitas%20y%20snacks.`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 font-sans text-gray-800">
@@ -39,7 +39,7 @@ export default function App() {
       {/* Hero / Encabezado */}
       <header className="bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-400 text-white text-center py-16 px-4 shadow-md">
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-wide drop-shadow-md">
-          🍬 CandyLand Party 🎉
+          🍬 Gomiland 🎉
         </h1>
         <p className="mt-4 text-xl md:text-2xl font-medium max-w-2xl mx-auto drop-shadow-sm">
           ¡Las barras de gomitas y snacks más coloridas y deliciosas para tus fiestas infantiles!
@@ -53,6 +53,8 @@ export default function App() {
           📱 Cotizar por WhatsApp
         </a>
       </header>
+
+      <GummyRain />
 
       {/* Características del Servicio */}
       <section className="max-w-6xl mx-auto py-12 px-4">
@@ -112,7 +114,7 @@ export default function App() {
 
       {/* Footer / Contacto */}
       <footer className="bg-gray-900 text-gray-400 text-center py-10 mt-16 px-4">
-        <p className="text-white font-bold text-lg">CandyLand Party © 2026</p>
+        <p className="text-white font-bold text-lg">Gomiland © 2026</p>
         <p className="text-sm mt-2">Haciendo tus eventos más dulces.</p>
         <div className="mt-4 flex justify-center space-x-6 text-sm">
           <span>📍 Cobertura Local</span>
