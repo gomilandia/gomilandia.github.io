@@ -1,5 +1,5 @@
 {
-  "homepage": "localhost",
+  "homepage": "https://gomilandia.party",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
