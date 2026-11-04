@@ -38,8 +38,14 @@ export default function App() {
       
       {/* Hero / Encabezado */}
       <header className="bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-400 text-white text-center py-16 px-4 shadow-md">
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-wide drop-shadow-md">
-          🍬 Gomiland 🎉
+        <h1 className="brand-title mx-auto w-fit max-w-full drop-shadow-md" aria-label="Gomilandia">
+          <span aria-hidden="true">
+            <span className="brand-letter--purple">Go</span>
+            <span className="brand-letter--blue">m</span>
+            <span className="brand-letter--pink">ila</span>
+            <span className="brand-letter--green">nd</span>
+            <span className="brand-letter--red">ia</span>
+          </span>
         </h1>
         <p className="mt-4 text-xl md:text-2xl font-medium max-w-2xl mx-auto drop-shadow-sm">
           ¡Las barras de gomitas y snacks más coloridas y deliciosas para tus fiestas infantiles!
@@ -114,7 +120,7 @@ export default function App() {
 
       {/* Footer / Contacto */}
       <footer className="bg-gray-900 text-gray-400 text-center py-10 mt-16 px-4">
-        <p className="text-white font-bold text-lg">Gomiland © 2026</p>
+        <p className="text-white font-bold text-lg">Gomilandia © 2026</p>
         <p className="text-sm mt-2">Haciendo tus eventos más dulces.</p>
         <div className="mt-4 flex justify-center space-x-6 text-sm">
           <span>📍 Cobertura Local</span>

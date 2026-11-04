@@ -1,4 +1,4 @@
-# Frontend de Gomiland
+# Frontend de Gomilandia
 
 Consulta el README de la raíz para ejecutar, probar y publicar el sitio.
 

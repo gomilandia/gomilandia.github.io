@@ -1,4 +1,4 @@
-# Gomiland
+# Gomilandia
 
 Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. Incluye una lluvia interactiva de 25 ositos Three.js sobre toda la página: cinco de cada color.
 

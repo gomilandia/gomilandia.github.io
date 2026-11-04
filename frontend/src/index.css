@@ -1,1 +1,41 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: "JellyBelly";
+  src: url("./assets/fonts/JellyBellyFont-Regular.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.brand-title {
+  font-family: "JellyBelly", sans-serif;
+  font-size: clamp(2.5rem, 10vw, 6rem);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 3px #111;
+  paint-order: stroke fill;
+  text-shadow: 3px 4px 0 #111;
+}
+
+.brand-letter--purple {
+  color: #a45bea;
+}
+
+.brand-letter--blue {
+  color: #78a9e8;
+}
+
+.brand-letter--pink {
+  color: #ed64a4;
+}
+
+.brand-letter--green {
+  color: #5eeb62;
+}
+
+.brand-letter--red {
+  color: #f21818;
+}
