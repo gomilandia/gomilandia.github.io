@@ -41,7 +41,12 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 font-sans text-gray-800">
       
       {/* Hero / Encabezado */}
-      <header className="bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-400 text-white text-center py-16 px-4 shadow-md">
+      <header className="hero-header bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-400 text-white text-center shadow-md">
+        <div className="hero-awning" aria-hidden="true">
+          {Array.from({ length: 10 }, (_, index) => (
+            <span key={index} />
+          ))}
+        </div>
         <h1 className="brand-title mx-auto w-fit max-w-full drop-shadow-md" aria-label="Gomilandia">
           <span aria-hidden="true">
             <span className="brand-letter--purple">Go</span>

@@ -20,6 +20,48 @@
   text-shadow: 3px 4px 0 #111;
 }
 
+.hero-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(7rem, 14vw, 9rem) 1rem 4rem;
+}
+
+.hero-awning {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 auto;
+  display: flex;
+  height: clamp(3.5rem, 11vw, 6.5rem);
+  overflow: hidden;
+  filter: drop-shadow(0 3px 2px rgb(75 42 79 / 12%));
+}
+
+.hero-awning span {
+  flex: 1 0 10%;
+  border-radius: 0 0 50% 50% / 0 0 32% 32%;
+}
+
+.hero-awning span:nth-child(5n + 1) {
+  background: #ed64a4;
+}
+
+.hero-awning span:nth-child(5n + 2) {
+  background: #a9e3ed;
+}
+
+.hero-awning span:nth-child(5n + 3) {
+  background: #b66bd0;
+}
+
+.hero-awning span:nth-child(5n + 4) {
+  background: #ffdf57;
+}
+
+.hero-awning span:nth-child(5n) {
+  background: #f3bdd0;
+}
+
 .brand-letter--purple {
   color: #a45bea;
 }
