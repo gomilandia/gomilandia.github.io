@@ -8,7 +8,7 @@
   background:
     radial-gradient(ellipse at 2% 4%, rgb(255 230 246 / 65%), transparent 26rem),
     radial-gradient(ellipse at 100% 20%, rgb(222 250 251 / 70%), transparent 24rem),
-    #fff;
+    rgb(255 255 255 / 80%);
   box-shadow: 0 1.5rem 4rem rgb(87 42 100 / 9%);
 }
 

@@ -1,6 +1,6 @@
 # Gomilandia
 
-Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. Incluye una lluvia continua de ositos Three.js que chocan con el puntero y se acumulan desde la parte baja. El primer lote es de 15 ositos en escritorio y 6 en móvil, donde la lluvia también es más lenta. En móvil vertical son más pequeños; en horizontal conservan su tamaño. El escritorio utiliza una cantidad máxima menor.
+Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. La decoración Three.js ocupa el fondo; el contenido, la navegación y las llamadas a WhatsApp permanecen al frente. Un osito grande se asoma ocasionalmente desde las esquinas inferiores.
 
 ## Desarrollo
 
@@ -12,15 +12,15 @@ npm ci
 npm run dev
 ```
 
-La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm test` comprueba la física, las colisiones, la emisión continua y la detección de sacudidas con distintas lecturas del sensor; `npm run build` genera `frontend/dist/`. `npm run preview` permite revisar esa compilación.
+La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm test` comprueba la física, las colisiones, el ciclo de vida de la lluvia y las apariciones en las esquinas; `npm run build` genera `frontend/dist/`. `npm run preview` permite revisar esa compilación.
 
 ## Lluvia de ositos
 
-Los ositos aparecen desde arriba en posiciones e intervalos aleatorios. Chocan con el puntero, entre sí y con el piso de la pantalla; siguen llegando y apilándose, con menor densidad en escritorio. Son decorativos: no hay marcador, panel ni botones para controlarlos, y los enlaces de la página permanecen disponibles.
+En la primera entrada de cada pestaña, caen 25 ositos en escritorio o 15 en móvil. Rebotan y se apilan unos segundos en el borde superior del pie de página, junto al área de “Gomilandia © 2026”. Los más antiguos se desvanecen gradualmente después de aterrizar. Quedan seis ositos decorativos en escritorio o cuatro en móvil, y continúa una lluvia suave de pocos ositos que también desaparecen con el tiempo. La población permanece limitada.
 
-Para despejarlos, mueve el mouse rápidamente de un lado a otro o pulsa la barra espaciadora. En móvil, agita el teléfono. Los navegadores que requieren permiso de movimiento lo solicitan en el primer toque real; si se deniega, no se vuelve a solicitar. También puedes dar un doble toque breve en una zona sin enlaces, controles ni galería para limpiar sin sensores. La sacudida abre temporalmente los bordes y dispara los ositos hacia los lados: permanecen visibles hasta salir de la pantalla. La lluvia se pausa durante la expulsión y vuelve a comenzar después de que salgan todos.
+Al terminar esa entrada, `sessionStorage` recuerda la visita para que una recarga de la misma pestaña comience directamente con la decoración y la lluvia suave. El osito grande alterna esquinas con pausas largas y nunca captura clics ni bloquea los botones. Para revisar de nuevo la entrada completa en desarrollo local se puede abrir `http://127.0.0.1:4317/?intro=1`.
 
-La lluvia se detiene al ocultar la pestaña. Si se solicita movimiento reducido, permanece en pausa, la limpieza es inmediata y la página no muestra la animación de sacudida. Los sensores de movimiento requieren un contexto seguro (HTTPS o localhost) y su disponibilidad depende del dispositivo y el navegador; el doble toque funciona sin ese permiso.
+La animación se detiene al ocultar la pestaña. La preferencia de movimiento reducido muestra solo la decoración estática y oculta las apariciones del osito grande. No se solicitan sensores ni permisos de movimiento.
 
 ## Publicación
 

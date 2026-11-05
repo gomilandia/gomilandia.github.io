@@ -38,10 +38,20 @@ export default function App() {
   const whatsappLink = contacts[0].whatsappLink;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 font-sans text-gray-800">
-      
+    <div className="site-shell min-h-screen font-sans text-gray-800">
+      <nav className="site-nav" aria-label="Navegación principal">
+        <a className="site-nav-brand" href="#inicio" aria-label="Gomilandia, inicio">Gomilandia</a>
+        <div className="site-nav-links">
+          <a href="#inicio">Inicio</a>
+          {showcaseImages.length > 0 && <a href="#momentos">Momentos</a>}
+          <a href="#paquetes">Paquetes</a>
+          <a href="#contacto">Contacto</a>
+        </div>
+        <a className="site-nav-cta" href={whatsappLink} target="_blank" rel="noopener noreferrer">Cotizar <span aria-hidden="true">↗</span></a>
+      </nav>
+
       {/* Hero / Encabezado */}
-      <header className="hero-header bg-gradient-to-r from-pink-400 via-purple-400 to-yellow-400 text-white text-center shadow-md">
+      <header id="inicio" className="site-content hero-header text-center">
         <div className="hero-awning" aria-hidden="true">
           {Array.from({ length: 10 }, (_, index) => (
             <span key={index} />
@@ -75,7 +85,7 @@ export default function App() {
       <GummyRain />
 
       {showcaseImages.length > 0 && (
-        <section className="showcase-section" aria-labelledby="showcase-heading">
+        <section id="momentos" className="site-content showcase-section" aria-labelledby="showcase-heading">
           <div className="showcase-heading">
             <p className="packages-eyebrow">Así se vive Gomilandia</p>
             <h2 id="showcase-heading">Momentos para disfrutar</h2>
@@ -101,7 +111,7 @@ export default function App() {
       )}
 
       {/* Paquetes y Precios */}
-      <section className="packages-section" aria-labelledby="packages-heading">
+      <section id="paquetes" className="site-content packages-section" aria-labelledby="packages-heading">
         <div className="packages-heading">
           <div>
             <p className="packages-eyebrow">Una fiesta llena de antojos</p>
@@ -164,7 +174,7 @@ export default function App() {
       </section>
 
       {/* Footer / Contacto */}
-      <footer className="site-footer bg-gray-900 text-gray-400 text-center py-10 mt-16 px-4">
+      <footer id="contacto" className="site-content site-footer text-gray-400 text-center py-10 mt-16 px-4">
         <p className="text-white font-bold text-lg">Gomilandia © 2026</p>
         <p className="text-sm mt-2">Haciendo tus eventos más dulces.</p>
         <p className="mx-auto mt-4 max-w-xl px-2 text-sm leading-relaxed">
