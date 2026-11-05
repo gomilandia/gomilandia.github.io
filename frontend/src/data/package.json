@@ -1,0 +1,60 @@
+{
+  "people": 50,
+  "currency": "MXN",
+  "countryCode": "52",
+  "contactNumbers": ["7777011362", "7773470867"],
+  "price": 1800,
+  "groups": [
+    {
+      "id": "complementos",
+      "name": "Complementos",
+      "selection": "Incluye 3",
+      "color": "aqua",
+      "items": [
+        { "name": "Zanahoria", "emoji": "🥕" },
+        { "name": "Pepino", "emoji": "🥒" },
+        { "name": "Fruta de temporada", "emoji": "🍉" }
+      ]
+    },
+    {
+      "id": "gomitas",
+      "name": "Gomitas",
+      "selection": "Elige 3 de 6",
+      "color": "purple",
+      "items": [
+        { "name": "Ositos", "emoji": "🐻", "image": "gomitas/ositos.jpg" },
+        { "name": "Gomitas de frutas", "emoji": "🍓", "image": "gomitas/frutas_azucaradas.jpg" },
+        { "name": "Gomitas redondas", "emoji": "🍬", "image": "gomitas/aritos_azucarados.jpg" },
+        { "name": "Gomitas enchiladas", "emoji": "🌶️" },
+        { "name": "Lombrices", "emoji": "🐛", "image": "gomitas/lombrices.jpg" },
+        { "name": "Lombrices neón", "emoji": "🐛", "image": "gomitas/lombrices_neon.jpg" }
+      ]
+    },
+    {
+      "id": "cacahuates",
+      "name": "Cacahuates",
+      "selection": "Elige 3 de 5",
+      "color": "pink",
+      "items": [
+        { "name": "Tipo hot-nut", "emoji": "🥜", "image": "cacahuates/tipo_hot_nut.jpg" },
+        { "name": "Japonés", "emoji": "🥜", "image": "cacahuates/japones.jpg" },
+        { "name": "Enchilado", "emoji": "🌶️", "image": "cacahuates/enchilado.jpg" },
+        { "name": "Español", "emoji": "🥜", "image": "cacahuates/español.jpg" },
+        { "name": "Habanero", "emoji": "🌶️" }
+      ]
+    },
+    {
+      "id": "snacks-salados",
+      "name": "Snacks salados",
+      "selection": "2 incluidos + elige 1",
+      "color": "yellow",
+      "items": [
+        { "name": "Papas saladas", "emoji": "🥔", "image": "snacks_salados/papas_saladas.jpg", "included": true },
+        { "name": "Chicharrones", "emoji": "🍘", "included": true },
+        { "name": "Churritos salados", "emoji": "🥨", "image": "snacks_salados/churritos_de_sal.jpg" },
+        { "name": "Churritos chipotle", "emoji": "🌶️", "image": "snacks_salados/churritos_enchilados.jpg" },
+        { "name": "Palomitas caseras", "emoji": "🍿", "image": "snacks_salados/palomitas.jpg" }
+      ]
+    }
+  ]
+}
