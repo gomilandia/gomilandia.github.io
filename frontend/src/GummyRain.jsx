@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createDeviceShakeDetector } from './gummyGestures.js';
 import './GummyRain.css';
 
 const noop = () => undefined;
@@ -9,14 +10,10 @@ function motionAccess() {
   return typeof window.DeviceMotionEvent.requestPermission === 'function' ? 'prompt' : 'enabled';
 }
 
-function vector(value) {
-  if (!value || ![value.x, value.y, value.z].every(Number.isFinite)) return null;
-  return [value.x, value.y, value.z];
-}
-
 export default function GummyRain() {
   const canvasRef = useRef(null);
   const sceneRef = useRef(null);
+  const sceneReadyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,9 +22,9 @@ export default function GummyRain() {
     import('./gummyScene.js').then(({ createGummyScene }) => {
       if (cancelled) return;
       scene = createGummyScene(canvasRef.current, {
-        onReady: noop,
+        onReady: () => { if (!cancelled) sceneReadyRef.current = true; },
         onPausedChange: noop,
-        onError: noop,
+        onError: () => { sceneReadyRef.current = false; },
         onShake: () => {
           if (cancelled || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
           document.documentElement.classList.add('gummy-page-shaking');
@@ -43,6 +40,7 @@ export default function GummyRain() {
       cancelled = true;
       scene?.dispose();
       sceneRef.current = null;
+      sceneReadyRef.current = false;
       window.clearTimeout(shakeTimer);
       document.documentElement.classList.remove('gummy-page-shaking');
     };
@@ -54,32 +52,22 @@ export default function GummyRain() {
     let cancelled = false;
     let permission = motionAccess();
     let requested = false;
-    let previousGravity = null;
-    let firstPeak = null;
-    let lastShake = -Infinity;
+    const deviceShake = createDeviceShakeDetector();
     let touchStart = null;
     let lastTap = null;
 
     function detectShake(event) {
-      if (!mobile.matches || permission !== 'enabled' || document.hidden) return;
-      const linear = vector(event.acceleration);
-      const gravity = vector(event.accelerationIncludingGravity);
-      const movement = linear ?? (gravity && previousGravity
-        ? gravity.map((value, index) => value - previousGravity[index]) : null);
-      previousGravity = gravity;
-      if (!movement) return;
-      const now = performance.now();
-      if (now - lastShake < 1400 || Math.hypot(...movement) < 14) return;
-      if (!firstPeak || now - firstPeak.time > 650) {
-        firstPeak = { time: now, movement };
-        return;
+      if (!mobile.matches || permission === 'denied' || document.hidden || !sceneReadyRef.current) return;
+      // Chrome can expose requestPermission while already allowing sensor readings.
+      // Receiving usable data means the browser has granted access; no tap is needed.
+      if (permission !== 'enabled') {
+        const readable = [event.acceleration, event.accelerationIncludingGravity]
+          .some((reading) => reading && ['x', 'y', 'z'].some((axis) => Number.isFinite(reading[axis])));
+        if (!readable) return;
+        permission = 'enabled';
       }
-      if (now - firstPeak.time < 75) return;
-      const reversal = movement.reduce((total, value, index) => total + value * firstPeak.movement[index], 0);
-      if (reversal >= 0) return;
-      lastShake = now;
-      firstPeak = null;
-      sceneRef.current?.shake();
+      // The detector keeps sensor timestamps and rejects stale queued samples.
+      if (deviceShake.sample(event, performance.now())) sceneRef.current?.shake();
     }
 
     function requestMotion(event) {
@@ -141,8 +129,7 @@ export default function GummyRain() {
     function cancelTouch() {
       touchStart = null;
       lastTap = null;
-      firstPeak = null;
-      previousGravity = null;
+      deviceShake.reset();
     }
 
     const startEvent = hasPointerEvents ? 'pointerdown' : 'touchstart';

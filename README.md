@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm test` comprueba la física, las colisiones y el despeje de los ositos; `npm run build` genera `frontend/dist/`. `npm run preview` permite revisar esa compilación.
+La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm test` comprueba la física, las colisiones, la emisión continua y la detección de sacudidas con distintas lecturas del sensor; `npm run build` genera `frontend/dist/`. `npm run preview` permite revisar esa compilación.
 
 ## Lluvia de ositos
 
