@@ -132,7 +132,7 @@ export function createGummyScene(canvas, { onReady = () => {}, onPausedChange = 
     }
     const moving = bears.some((bear) => bear.active && !bear.sleeping);
     if (renderDirty || wasMoving || moving) draw();
-    if (!paused && (moving || bears.length < world.maxBears || bears.some((bear) => !bear.active))) frame = requestAnimationFrame(animate);
+    if (!paused && (world.clearing || moving || bears.length < world.maxBears || bears.some((bear) => !bear.active))) frame = requestAnimationFrame(animate);
     else lastTime = 0;
   }
 
@@ -142,6 +142,7 @@ export function createGummyScene(canvas, { onReady = () => {}, onPausedChange = 
 
   function setPaused(value) {
     paused = Boolean(value);
+    if (paused && world.clearing) bears = createBears(world);
     lastTime = 0;
     lastFrame = 0;
     renderDirty = true;
@@ -151,7 +152,7 @@ export function createGummyScene(canvas, { onReady = () => {}, onPausedChange = 
 
   function shake() {
     const now = performance.now();
-    if (!loaded || disposed || failed || document.hidden || now - lastShake < 1400) return false;
+    if (!loaded || disposed || failed || document.hidden || world.clearing || now - lastShake < 1400) return false;
     lastShake = now;
     if (paused) bears = createBears(world);
     else shakeBears(bears, world);

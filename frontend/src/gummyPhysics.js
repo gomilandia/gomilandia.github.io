@@ -1,4 +1,4 @@
-export const BEAR_COUNT = 25;
+export const BEAR_COUNT = 15;
 export const MOBILE_BEAR_COUNT = 6;
 export const COLOR_NAMES = ['rojo', 'verde', 'naranja', 'amarillo', 'rosa'];
 
@@ -33,16 +33,22 @@ export function createWorld(pixelWidth, pixelHeight, {
   const width = height * safeWidth / safeHeight;
   const mobile = safeWidth <= mobileBreakpoint;
   const bearCount = Math.max(0, Math.floor(mobile ? mobileCount : desktopCount));
-  const bearSize = Math.min(mobile ? 0.95 : 1.12, width / 4.4);
-  const capacity = Math.max(bearCount, Math.min(MAX_CAPACITY,
-    Math.ceil(width * height / (bearSize * bearSize * 0.78))));
+  const portrait = safeHeight > safeWidth;
+  const bearSize = Math.min(mobile ? (portrait ? 0.65 : 0.95) : 1.12, width / 4.4);
+  const areaCapacity = Math.min(MAX_CAPACITY,
+    Math.ceil(width * height / (bearSize * bearSize * 0.78)));
+  const capacity = Math.max(bearCount, mobile ? areaCapacity : Math.ceil(areaCapacity * 0.65));
   const fillCapacity = Math.max(bearCount, Math.min(MAX_CAPACITY, maxBears ?? capacity));
   return {
     width, height, bearSize, bearCount, mobile,
     fillCapacity,
     maxBears: fillCapacity,
-    spawnInterval: spawnInterval ?? (mobile ? 0.85 : 0.28),
+    spawnInterval: spawnInterval ?? (mobile ? 0.85 : 0.4),
     emissionElapsed: 0,
+    clearing: false,
+    wallsEnabled: true,
+    clearElapsed: 0,
+    clearWaitElapsed: 0,
   };
 }
 
@@ -80,11 +86,16 @@ function makeBear(id, world, random, delay) {
 export function createBears(world, random = Math.random) {
   world.emissionElapsed = 0;
   world.maxBears = world.fillCapacity ?? world.maxBears;
+  world.clearing = false;
+  world.wallsEnabled = true;
+  world.clearElapsed = 0;
+  world.clearWaitElapsed = 0;
   return Array.from({ length: world.bearCount }, (_, id) =>
     makeBear(id, world, random, id === 0 ? 0 : between(random, 0.2, 7.5)));
 }
 
 function containBear(bear, world) {
+  if (world.wallsEnabled === false) return;
   const floor = floorFor(world);
   const limit = limitFor(world);
   if (bear.x < -limit || bear.x > limit) {
@@ -260,6 +271,31 @@ export function stepSimulation(bears, world, deltaTime, {
 } = {}) {
   if (!Number.isFinite(deltaTime) || deltaTime <= 0 || reducedMotion) return false;
   const delta = Math.min(deltaTime, MAX_FRAME);
+  if (world.clearing) {
+    world.clearElapsed += delta;
+    for (const bear of bears) {
+      if (!bear.active) continue;
+      const direction = bear.exitDirection;
+      const distance = world.width / 2 + world.bearSize - direction * bear.x;
+      // A resize may move the edge farther away. Speed up remaining bodies
+      // after the normal flight, but never hide or teleport a visible body.
+      if (world.clearElapsed > 1.8) {
+        bear.vx = direction * Math.max(Math.abs(bear.vx), Math.max(0, distance) / 0.25);
+      }
+      bear.x += bear.vx * delta;
+      bear.y += bear.vy * delta;
+      bear.rotationX += bear.spinX * delta;
+      bear.rotationY += bear.spinY * delta;
+      bear.rotationZ += bear.spinZ * delta;
+      if (direction * bear.x > world.width / 2 + world.bearSize) bear.active = false;
+    }
+    if (bears.some((bear) => bear.active)) world.clearWaitElapsed = 0;
+    else world.clearWaitElapsed += delta;
+    if (world.clearWaitElapsed >= 0.3) {
+      bears.splice(0, bears.length, ...createBears(world, random));
+    }
+    return true;
+  }
   const steps = Math.ceil(delta / SUBSTEP);
   const dt = delta / steps;
   if (bears.length < world.maxBears) {
@@ -295,13 +331,6 @@ export function stepSimulation(bears, world, deltaTime, {
       bear.rotationZ += bear.spinZ * dt;
       bear.bounceAmount *= Math.exp(-10 * dt);
 
-      if (bear.clearing && (
-        Math.abs(bear.x) > world.width / 2 + world.bearSize
-        || bear.y > world.height / 2 + world.bearSize * 2
-        || bear.y < -world.height / 2 - world.bearSize
-      )) {
-        scheduleBear(bear, world, random, between(random, 1.5, 6));
-      }
     }
 
     solveContacts(bears, world, pointer);
@@ -321,7 +350,28 @@ export function stepSimulation(bears, world, deltaTime, {
 }
 
 export function shakeBears(bears, world, random = Math.random) {
-  bears.splice(0, bears.length, ...createBears(world, random));
+  if (world.clearing) return false;
+  world.clearing = true;
+  world.wallsEnabled = false;
+  world.clearElapsed = 0;
+  world.clearWaitElapsed = 0;
+  world.emissionElapsed = 0;
+  for (const bear of bears) {
+    wakeBear(bear);
+    bear.clearing = true;
+    bear.supported = false;
+    if (!bear.active) continue;
+    const direction = bear.x === 0 ? (sample(random) < 0.5 ? -1 : 1) : Math.sign(bear.x);
+    const distance = Math.max(0, world.width / 2 + world.bearSize - Math.abs(bear.x));
+    bear.exitDirection = direction;
+    bear.vx = direction * Math.max(world.bearSize * 4, distance / between(random, 1.05, 1.65));
+    bear.vy = clamp(-bear.y * 0.15, -0.85, 0.85) + between(random, -0.12, 0.12);
+    bear.spinX = between(random, -5, 5);
+    bear.spinY = between(random, -6, 6);
+    bear.spinZ = direction * between(random, 3, 7);
+    bear.bounceAmount = 0;
+  }
+  return true;
 }
 
 export function resizeWorld(bears, oldWorld, newWorld, random = Math.random) {
@@ -329,6 +379,17 @@ export function resizeWorld(bears, oldWorld, newWorld, random = Math.random) {
   newWorld.emissionElapsed = oldWorld.emissionElapsed ?? 0;
   const widthRatio = newWorld.width / oldWorld.width;
   const heightRatio = newWorld.height / oldWorld.height;
+  if (oldWorld.clearing) {
+    newWorld.clearing = true;
+    newWorld.wallsEnabled = false;
+    newWorld.clearElapsed = oldWorld.clearElapsed;
+    newWorld.clearWaitElapsed = oldWorld.clearWaitElapsed;
+    for (const bear of bears) {
+      bear.x *= widthRatio;
+      bear.y *= heightRatio;
+    }
+    return;
+  }
   for (const bear of bears) {
     wakeBear(bear);
     bear.x *= widthRatio;

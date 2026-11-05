@@ -42,7 +42,15 @@ function activate(bear, values = {}) {
   return bear;
 }
 
-test('uses 25 desktop bears, 6 mobile bears and a configurable breakpoint/count', () => {
+function finishClearing(bears, world, random, maxSeconds = 3) {
+  for (let frame = 0; world.clearing && frame < Math.ceil(maxSeconds * 60); frame++) {
+    stepSimulation(bears, world, 1 / 60, { random });
+  }
+  assert.equal(world.clearing, false, 'expulsion must finish after bodies physically leave');
+  assert.equal(world.wallsEnabled, true);
+}
+
+test('uses 15 desktop bears, 6 mobile bears and a configurable breakpoint/count', () => {
   const desktop = setup();
   const mobile = setup(640, 850);
   assert.equal(desktop.world.mobile, false);
@@ -50,18 +58,34 @@ test('uses 25 desktop bears, 6 mobile bears and a configurable breakpoint/count'
   assert.equal(mobile.world.mobile, true);
   assert.equal(mobile.bears.length, MOBILE_BEAR_COUNT);
   assert.equal(MOBILE_BEAR_COUNT, 6);
-  assert.equal(createWorld(641, 850).bearCount, 25);
+  assert.equal(BEAR_COUNT, 15);
+  assert.equal(createWorld(641, 850).bearCount, 15);
   assert.equal(createWorld(700, 850, { mobileBreakpoint: 720, mobileCount: 8 }).bearCount, 8);
   assert.equal(new Set(desktop.bears.map((bear) => bear.id)).size, BEAR_COUNT);
-  assert.deepEqual(COLOR_NAMES.map((_, color) => desktop.bears.filter((bear) => bear.colorIndex === color).length), [5, 5, 5, 5, 5]);
+  assert.deepEqual(COLOR_NAMES.map((_, color) => desktop.bears.filter((bear) => bear.colorIndex === color).length), [3, 3, 3, 3, 3]);
+});
+
+test('desktop density and emission are reduced while portrait mobile bears are smaller', () => {
+  const desktop = createWorld(1440, 900);
+  const oldCapacity = Math.ceil(desktop.width * desktop.height / (1.12 ** 2 * 0.78));
+  assert.equal(desktop.bearSize, 1.12);
+  assert.equal(desktop.fillCapacity, Math.ceil(oldCapacity * 0.65));
+  assert.equal(desktop.spawnInterval, 0.4);
+  const portrait = createWorld(390, 844);
+  const landscape = createWorld(844, 390, { mobileBreakpoint: Infinity });
+  assert.equal(portrait.bearSize, 0.65);
+  assert.equal(landscape.bearSize, 0.95);
+  assert.equal(portrait.spawnInterval, 0.85);
+  assert.equal(landscape.bearCount, 6);
+  assert.ok(createWorld(100, 1000).bearSize <= createWorld(100, 1000).width / 4.4);
 });
 
 test('starts above the viewport with randomized positions, rotations and delayed arrivals', () => {
   const { world, bears } = setup();
   assert.ok(bears.every((bear) => bear.y > world.height / 2));
   assert.equal(bears.filter((bear) => bear.active).length, 1);
-  assert.ok(new Set(bears.map((bear) => bear.spawnDelay)).size > 20);
-  assert.ok(new Set(bears.map((bear) => bear.x)).size > 20);
+  assert.ok(new Set(bears.map((bear) => bear.spawnDelay)).size > BEAR_COUNT * 0.8);
+  assert.ok(new Set(bears.map((bear) => bear.x)).size > BEAR_COUNT * 0.8);
   assert.notEqual(bears[0].rotationY, bears[1].rotationY);
   assert.notDeepEqual(bears, createBears(world, seeded(987)));
   const before = { ...bears[0] };
@@ -87,7 +111,7 @@ test('rain keeps emitting after the initial batch, with a slower mobile rate', (
   }
 });
 
-test('continuous rain fills desktop and mobile windows up to a bounded capacity', () => {
+test('continuous rain reaches its lower desktop density or mobile fill capacity', () => {
   for (const [width, height] of [[1440, 900], [390, 844]]) {
     const world = createWorld(width, height);
     const random = seeded();
@@ -100,7 +124,8 @@ test('continuous rain fills desktop and mobile windows up to a bounded capacity'
     }
     assert.equal(bears.length, world.maxBears);
     assert.ok(bears.every((bear) => bear.active && bear.sleeping));
-    assert.ok(Math.max(...bears.map((bear) => bear.y)) >= world.height / 2 - world.bearSize);
+    const pileTop = Math.max(...bears.map((bear) => bear.y));
+    assert.ok(pileTop >= (world.mobile ? world.height / 2 - world.bearSize : -world.height * 0.1));
     assert.ok(bears.every((bear) => bear.y >= -world.height / 2 + world.bearSize / 2));
     assert.ok(bears.every((bear) => Object.values(bear).every((value) => typeof value !== 'number' || Number.isFinite(value))));
     const retained = bears.slice();
@@ -112,13 +137,15 @@ test('continuous rain fills desktop and mobile windows up to a bounded capacity'
       const nativeCapacity = mobile.maxBears;
       resizeWorld(bears, world, mobile, random);
       assert.equal(bears.length, retained.length);
-      assert.equal(mobile.maxBears, retained.length);
+      assert.equal(mobile.maxBears, Math.max(nativeCapacity, retained.length));
       assert.equal(mobile.fillCapacity, nativeCapacity);
       shakeBears(bears, mobile, random);
+      finishClearing(bears, mobile, random);
       assert.equal(bears.length, MOBILE_BEAR_COUNT);
       assert.equal(mobile.maxBears, nativeCapacity);
     }
     shakeBears(bears, world, random);
+    finishClearing(bears, world, random);
     assert.equal(bears.length, world.bearCount);
     assert.equal(world.emissionElapsed, 0);
     assert.ok(bears.every((bear) => bear.y > world.height / 2 && !bear.sleeping));
@@ -135,7 +162,7 @@ test('resize keeps the accumulated population and expands emission capacity when
   advance(bears, desktop, 12, { random });
   const retained = bears.slice();
   assert.equal(retained.length, 120);
-  const mobile = createWorld(390, 844);
+  const mobile = createWorld(390, 844, { maxBears: 80 });
   assert.ok(mobile.maxBears < retained.length);
   resizeWorld(bears, desktop, mobile, random);
   assert.equal(bears.length, retained.length);
@@ -148,6 +175,12 @@ test('resize keeps the accumulated population and expands emission capacity when
   advance(bears, large, 2, { random });
   assert.ok(bears.length > retained.length);
   assert.ok(retained.every((bear, index) => bears[index] === bear));
+  resizeWorld(bears, large, mobile, random);
+  assert.ok(mobile.maxBears > mobile.fillCapacity);
+  shakeBears(bears, mobile, random);
+  finishClearing(bears, mobile, random);
+  assert.equal(bears.length, MOBILE_BEAR_COUNT);
+  assert.equal(mobile.maxBears, mobile.fillCapacity);
 });
 
 test('reduced motion freezes the emission clock and restarts without a backlog', () => {
@@ -218,6 +251,9 @@ test('shake clears accumulated bears and restarts the initial falling batch', ()
   const previous = bears.slice();
   world.emissionElapsed = 0.2;
   shakeBears(bears, world, random);
+  assert.ok(bears.every((bear, index) => bear === previous[index] && bear.active && bear.clearing));
+  assert.equal(world.wallsEnabled, false);
+  finishClearing(bears, world, random);
   assert.equal(bears.length, world.bearCount);
   assert.equal(world.emissionElapsed, 0);
   assert.ok(bears.every((bear, index) => bear !== previous[index] && bear.y > world.height / 2));
@@ -237,8 +273,8 @@ test('resize adjusts population and bounds while preserving existing bear identi
   assert.ok(bears.every((bear) => Math.abs(bear.x) <= mobile.width / 2 - mobile.bearSize / 2 + 1e-8));
   assert.ok(bears.every((bear) => bear.y >= -mobile.height / 2 + mobile.bearSize / 2));
   resizeWorld(bears, mobile, world, random);
-  assert.equal(bears.length, 25);
-  assert.equal(new Set(bears.map((bear) => bear.id)).size, 25);
+  assert.equal(bears.length, BEAR_COUNT);
+  assert.equal(new Set(bears.map((bear) => bear.id)).size, BEAR_COUNT);
   assert.ok(bears.every((bear, index) => bear === retained[index]));
 });
 
@@ -296,7 +332,99 @@ test('rest wakes for pointer, impact, missing support, shake and resize', () => 
   const reset = [bear];
   shakeBears(reset, world, random);
   assert.equal(reset.length, world.bearCount);
-  assert.ok(reset.every((next) => !next.sleeping && next.vy < 0));
+  assert.equal(reset[0], bear);
+  assert.ok(reset.every((next) => !next.sleeping && next.clearing));
+  finishClearing(reset, world, random);
+});
+
+test('expulsion preserves visible bodies until the whole model crosses a side, then restarts', () => {
+  const world = createWorld(1440, 900);
+  const random = seeded();
+  const bears = createBears(world, random);
+  bears.forEach((bear, index) => activate(bear, {
+    x: (index % 3 - 1) * world.width * 0.2,
+    y: index % 2 ? world.height / 2 - world.bearSize : -world.height / 2 + world.bearSize,
+  }));
+  const previous = bears.slice();
+  assert.equal(shakeBears(bears, world, random), true);
+  assert.ok(previous.every((bear, index) => bears[index] === bear && bear.active));
+  assert.ok(previous.every((bear) => bear.vx * bear.exitDirection > 0));
+  const beforeRepeat = structuredClone({ bears, world });
+  assert.equal(shakeBears(bears, world, random), false);
+  assert.deepEqual({ bears, world }, beforeRepeat);
+  let partialCrossing = false;
+  let allOutAt = null;
+  for (let frame = 1; frame <= 180 && world.clearing; frame++) {
+    stepSimulation(bears, world, 1 / 60, {
+      random, pointer: { x: 0, y: 0, vx: -100, vy: 100, radius: 100 },
+    });
+    const now = frame / 60;
+    for (const bear of previous) {
+      if (!bear.active) assert.ok(Math.abs(bear.x) > world.width / 2 + world.bearSize);
+      else if (Math.abs(bear.x) > world.width / 2) partialCrossing = true;
+    }
+    if (previous.every((bear) => !bear.active) && allOutAt === null) allOutAt = now;
+    if (world.clearing) {
+      assert.equal(world.wallsEnabled, false);
+      assert.equal(world.emissionElapsed, 0);
+      assert.equal(bears.length, previous.length);
+      assert.ok(bears.every((bear, index) => bear === previous[index]));
+    } else {
+      assert.ok(allOutAt !== null && now - allOutAt >= 0.25);
+    }
+  }
+  assert.ok(partialCrossing, 'bodies remain visible while crossing the edge');
+  assert.equal(world.clearing, false);
+  assert.equal(world.wallsEnabled, true);
+  assert.equal(world.clearElapsed, 0);
+  assert.equal(world.clearWaitElapsed, 0);
+  assert.equal(bears.length, world.bearCount);
+  assert.ok(bears.every((bear, index) => bear !== previous[index] && !bear.clearing));
+  advance(bears, world, 1, { random });
+  assert.ok(bears.length > world.bearCount);
+});
+
+test('expulsion has no floor or top recycling and preserves velocities through resize', () => {
+  const world = createWorld(390, 844);
+  const random = seeded();
+  const bears = createBears(world, random);
+  bears.forEach((bear, index) => activate(bear, { x: 0, y: index ? 7 : -6 }));
+  shakeBears(bears, world, random);
+  bears[0].vy = -2;
+  const before = bears.map((bear) => ({ x: bear.x, y: bear.y, vx: bear.vx, vy: bear.vy }));
+  stepSimulation(bears, world, 0.05, { random });
+  bears.forEach((bear, index) => {
+    assert.equal(bear.active, true);
+    assert.ok(Math.abs(bear.x - before[index].x - before[index].vx * 0.05) < 1e-8);
+    assert.ok(Math.abs(bear.y - before[index].y - before[index].vy * 0.05) < 1e-8);
+  });
+  assert.ok(bears[0].y < -6);
+  const velocities = bears.map((bear) => [bear.vx, bear.vy]);
+  const population = bears.slice();
+  const enlarged = createWorld(3840, 900);
+  resizeWorld(bears, world, enlarged, random);
+  assert.equal(enlarged.clearing, true);
+  assert.equal(enlarged.wallsEnabled, false);
+  assert.equal(enlarged.clearElapsed, world.clearElapsed);
+  assert.deepEqual(bears.map((bear) => [bear.vx, bear.vy]), velocities);
+  assert.equal(bears.length, population.length, 'resize must not add the desktop initial batch during expulsion');
+  assert.ok(bears.every((bear, index) => bear === population[index]));
+  finishClearing(bears, enlarged, random);
+  assert.equal(bears.length, BEAR_COUNT);
+  assert.ok(bears.every((bear) => Object.values(bear).every((value) => typeof value !== 'number' || Number.isFinite(value))));
+});
+
+test('createBears can immediately reset an expulsion for reduced-motion rendering', () => {
+  const { world, bears, random } = setup();
+  shakeBears(bears, world, random);
+  advance(bears, world, 0.2, { random });
+  const reset = createBears(world, random);
+  assert.equal(world.clearing, false);
+  assert.equal(world.wallsEnabled, true);
+  assert.equal(world.clearElapsed, 0);
+  assert.equal(world.clearWaitElapsed, 0);
+  assert.equal(world.emissionElapsed, 0);
+  assert.equal(reset.length, world.bearCount);
 });
 
 test('airborne bears remain awake through a slow apex and fall normally', () => {
