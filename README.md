@@ -1,6 +1,6 @@
 # Gomilandia
 
-Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. Incluye una lluvia de ositos Three.js que chocan con el puntero y se acumulan en la parte baja de la pantalla: 25 en escritorio y 6 en móvil.
+Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. Incluye una lluvia continua de ositos Three.js que chocan con el puntero y se acumulan desde la parte baja hasta llenar la pantalla. El primer lote es de 25 ositos en escritorio y 6 en móvil, donde la lluvia también es más lenta.
 
 ## Desarrollo
 
@@ -16,11 +16,11 @@ La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm tes
 
 ## Lluvia de ositos
 
-Los ositos aparecen desde arriba en posiciones e intervalos aleatorios. Chocan con el puntero, entre sí y con el piso de la pantalla, donde se van acumulando. Son decorativos: no hay marcador ni acciones al hacer clic y los enlaces de la página permanecen disponibles.
+Los ositos aparecen desde arriba en posiciones e intervalos aleatorios. Chocan con el puntero, entre sí y con el piso de la pantalla; siguen llegando y apilándose hasta ocuparla. Son decorativos: no hay marcador, panel ni botones para controlarlos, y los enlaces de la página permanecen disponibles.
 
-Para despejarlos, mueve el mouse rápidamente de un lado a otro, pulsa la barra espaciadora o usa «Agitar». En móvil, agita el teléfono; si el navegador solicita permiso, pulsa «Activar movimiento» y autoriza el sensor. El botón «Limpiar ositos» también funciona sin sensores o si no se concede el permiso. La sacudida despeja los ositos y una nueva lluvia comienza desde arriba.
+Para despejarlos, mueve el mouse rápidamente de un lado a otro o pulsa la barra espaciadora. En móvil, agita el teléfono. Los navegadores que requieren permiso de movimiento lo solicitan en el primer toque real; si se deniega, no se vuelve a solicitar. También puedes dar un doble toque breve en una zona sin enlaces, controles ni galería para limpiar sin sensores. La sacudida despeja los ositos y una nueva lluvia comienza desde arriba.
 
-El control «Pausar» detiene la lluvia; también se detiene al ocultar la pestaña. Si se solicita movimiento reducido, comienza en pausa y la página no muestra la animación de sacudida. Los sensores de movimiento requieren un contexto seguro (HTTPS o localhost) y su disponibilidad depende del dispositivo y el navegador.
+La lluvia se detiene al ocultar la pestaña. Si se solicita movimiento reducido, permanece en pausa y la página no muestra la animación de sacudida. Los sensores de movimiento requieren un contexto seguro (HTTPS o localhost) y su disponibilidad depende del dispositivo y el navegador; el doble toque funciona sin ese permiso.
 
 ## Publicación
 

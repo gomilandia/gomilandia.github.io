@@ -6,6 +6,7 @@ const GRAVITY = 7;
 const MAX_FRAME = 0.05;
 const SUBSTEP = 1 / 120;
 const SOLVER_ITERATIONS = 12;
+const MAX_CAPACITY = 600;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const sample = (random) => clamp(Number(random()) || 0, 0, 1);
 const between = (random, min, max) => min + sample(random) * (max - min);
@@ -23,6 +24,8 @@ export function createWorld(pixelWidth, pixelHeight, {
   mobileBreakpoint = 640,
   desktopCount = BEAR_COUNT,
   mobileCount = MOBILE_BEAR_COUNT,
+  maxBears,
+  spawnInterval,
 } = {}) {
   const safeWidth = Number.isFinite(pixelWidth) && pixelWidth > 0 ? pixelWidth : 1;
   const safeHeight = Number.isFinite(pixelHeight) && pixelHeight > 0 ? pixelHeight : 1;
@@ -31,7 +34,16 @@ export function createWorld(pixelWidth, pixelHeight, {
   const mobile = safeWidth <= mobileBreakpoint;
   const bearCount = Math.max(0, Math.floor(mobile ? mobileCount : desktopCount));
   const bearSize = Math.min(mobile ? 0.95 : 1.12, width / 4.4);
-  return { width, height, bearSize, bearCount, mobile };
+  const capacity = Math.max(bearCount, Math.min(MAX_CAPACITY,
+    Math.ceil(width * height / (bearSize * bearSize * 0.78))));
+  const fillCapacity = Math.max(bearCount, Math.min(MAX_CAPACITY, maxBears ?? capacity));
+  return {
+    width, height, bearSize, bearCount, mobile,
+    fillCapacity,
+    maxBears: fillCapacity,
+    spawnInterval: spawnInterval ?? (mobile ? 0.85 : 0.28),
+    emissionElapsed: 0,
+  };
 }
 
 function scheduleBear(bear, world, random, delay) {
@@ -66,6 +78,8 @@ function makeBear(id, world, random, delay) {
 }
 
 export function createBears(world, random = Math.random) {
+  world.emissionElapsed = 0;
+  world.maxBears = world.fillCapacity ?? world.maxBears;
   return Array.from({ length: world.bearCount }, (_, id) =>
     makeBear(id, world, random, id === 0 ? 0 : between(random, 0.2, 7.5)));
 }
@@ -157,12 +171,40 @@ function collidePointer(bear, pointer, world) {
   }
 }
 
+function makeGrid(bears, cellSize) {
+  const cells = new Map();
+  for (const bear of bears) {
+    const key = `${Math.floor(bear.x / cellSize)},${Math.floor(bear.y / cellSize)}`;
+    const cell = cells.get(key);
+    if (cell) cell.push(bear);
+    else cells.set(key, [bear]);
+  }
+  return { cells, cellSize };
+}
+
+function neighbors(grid, bear) {
+  const x = Math.floor(bear.x / grid.cellSize);
+  const y = Math.floor(bear.y / grid.cellSize);
+  const nearby = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const cell = grid.cells.get(`${x + dx},${y + dy}`);
+      if (cell) nearby.push(...cell);
+    }
+  }
+  return nearby;
+}
+
 function solveContacts(bears, world, pointer, iterations = SOLVER_ITERATIONS) {
   const solid = bears.filter((bear) => bear.active && !bear.clearing);
+  if (!pointer && solid.every((bear) => bear.sleeping)) return;
   for (let iteration = 0; iteration < iterations; iteration++) {
-    for (let first = 0; first < solid.length; first++) {
-      for (let second = first + 1; second < solid.length; second++) {
-        collidePair(solid[first], solid[second], world);
+    const grid = makeGrid(solid, radiusFor(world) * 2);
+    for (const first of solid) {
+      if (first.sleeping) continue;
+      for (const second of neighbors(grid, first)) {
+        if (first === second || (!second.sleeping && first.id > second.id)) continue;
+        collidePair(first, second, world);
       }
     }
     for (const bear of solid) {
@@ -180,8 +222,9 @@ function updateRest(bears, world, dt) {
   const grounded = new Set();
   const tolerance = world.bearSize * 0.012;
   const diameter = radiusFor(world) * 2;
+  const grid = makeGrid(solid, diameter + tolerance);
   for (const bear of solid) {
-    const supports = solid.filter((lower) => grounded.has(lower)
+    const supports = neighbors(grid, bear).filter((lower) => grounded.has(lower)
       && bear.y - lower.y > diameter * 0.04
       && Math.hypot(bear.x - lower.x, bear.y - lower.y) <= diameter + tolerance);
     // Two shallow contacts on opposite sides also support a body in a gap.
@@ -219,6 +262,16 @@ export function stepSimulation(bears, world, deltaTime, {
   const delta = Math.min(deltaTime, MAX_FRAME);
   const steps = Math.ceil(delta / SUBSTEP);
   const dt = delta / steps;
+  if (bears.length < world.maxBears) {
+    world.emissionElapsed += delta;
+    const interval = Math.max(0.05, world.spawnInterval);
+    while (world.emissionElapsed >= interval && bears.length < world.maxBears) {
+      world.emissionElapsed -= interval;
+      bears.push(makeBear(bears.length, world, random, 0));
+    }
+  } else {
+    world.emissionElapsed = 0;
+  }
 
   for (let step = 0; step < steps; step++) {
     for (const bear of bears) {
@@ -268,27 +321,12 @@ export function stepSimulation(bears, world, deltaTime, {
 }
 
 export function shakeBears(bears, world, random = Math.random) {
-  for (const bear of bears) {
-    if (!bear.active) {
-      scheduleBear(bear, world, random, between(random, 1.5, 6));
-      continue;
-    }
-    wakeBear(bear);
-    const direction = Math.abs(bear.x) > world.bearSize * 0.2
-      ? Math.sign(bear.x) : (sample(random) < 0.5 ? -1 : 1);
-    bear.vx = direction * between(random, 8, 13);
-    bear.vy = between(random, 5, 9);
-    bear.spinX = between(random, -5, 5);
-    bear.spinY = between(random, -6, 6);
-    bear.spinZ = direction * between(random, 3, 7);
-    bear.bounceAmount = 1;
-    bear.clearing = true;
-    bear.supported = false;
-  }
+  bears.splice(0, bears.length, ...createBears(world, random));
 }
 
 export function resizeWorld(bears, oldWorld, newWorld, random = Math.random) {
-  bears.splice(newWorld.bearCount);
+  newWorld.maxBears = Math.max(newWorld.maxBears, bears.length);
+  newWorld.emissionElapsed = oldWorld.emissionElapsed ?? 0;
   const widthRatio = newWorld.width / oldWorld.width;
   const heightRatio = newWorld.height / oldWorld.height;
   for (const bear of bears) {

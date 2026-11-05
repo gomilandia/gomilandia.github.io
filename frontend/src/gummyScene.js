@@ -6,7 +6,7 @@ import { createMouseShakeDetector, shouldShakeFromSpace } from './gummyGestures.
 
 const GUMMY_COLORS = [0xff0033, 0x00cc44, 0xffaa00, 0xffee00, 0xff66cc];
 
-export function createGummyScene(canvas, { onReady, onPausedChange, onError, onShake }) {
+export function createGummyScene(canvas, { onReady = () => {}, onPausedChange = () => {}, onError = () => {}, onShake = () => {} } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -42,14 +42,18 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
   });
   const geometries = new Set();
   const sourceMaterials = new Set();
-  const groups = [];
+  const batches = [];
+  const modelParts = [];
+  const transform = new THREE.Object3D();
+  const instanceMatrix = new THREE.Matrix4();
   const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
   const touchPreference = window.matchMedia('(pointer: coarse)');
   const mouseShake = createMouseShakeDetector();
   const worldForSize = (width, height) => createWorld(width, height, { mobileBreakpoint: touchPreference.matches ? Infinity : 640 });
   let world = worldForSize(canvas.clientWidth, canvas.clientHeight);
   let bears = createBears(world);
-  let sourceModel;
+  let batchCapacity = 0;
+  let renderDirty = true;
   let pointer = null;
   let lastPointer = null;
   let paused = motionPreference.matches;
@@ -58,38 +62,67 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
   let failed = false;
   let frame = 0;
   let lastTime = 0;
+  let lastFrame = 0;
   let lastShake = -Infinity;
 
   function syncObjects() {
-    while (groups.length > bears.length) scene.remove(groups.pop());
-    bears.forEach((bear, index) => {
-      let group = groups[index];
-      if (!group) {
-        group = new THREE.Group();
-        const copy = sourceModel.clone(true);
-        copy.traverse((child) => { if (child.isMesh) child.material = materials[bear.colorIndex]; });
-        group.add(copy);
-        groups.push(group);
-        scene.add(group);
+    const required = Math.ceil(Math.max(world.maxBears, bears.length) / materials.length);
+    if (required > batchCapacity) {
+      for (const { mesh } of batches) {
+        scene.remove(mesh);
+        mesh.dispose();
       }
-      group.visible = bear.active;
-      group.position.set(bear.x, bear.y, bear.z);
-      group.rotation.set(bear.rotationX, bear.rotationY, bear.rotationZ);
-      group.scale.set(world.bearSize * (1 + bear.bounceAmount * 0.08), world.bearSize * (1 - bear.bounceAmount * 0.12), world.bearSize);
-    });
+      batches.length = 0;
+      batchCapacity = required;
+      materials.forEach((material, colorIndex) => {
+        modelParts.forEach((part) => {
+          const mesh = new THREE.InstancedMesh(part.geometry, material, batchCapacity);
+          mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          mesh.frustumCulled = false;
+          scene.add(mesh);
+          batches.push({ mesh, colorIndex, modelMatrix: part.matrix });
+        });
+      });
+    }
+    const counts = materials.map(() => 0);
+    for (const bear of bears) {
+      if (!bear.active || bear.y > world.height / 2 + world.bearSize || bear.y < -world.height / 2 - world.bearSize) continue;
+      const index = counts[bear.colorIndex]++;
+      transform.position.set(bear.x, bear.y, bear.z);
+      transform.rotation.set(bear.rotationX, bear.rotationY, bear.rotationZ);
+      transform.scale.set(world.bearSize * (1 + bear.bounceAmount * 0.08), world.bearSize * (1 - bear.bounceAmount * 0.12), world.bearSize);
+      transform.updateMatrix();
+      for (const batch of batches) {
+        if (batch.colorIndex !== bear.colorIndex) continue;
+        instanceMatrix.multiplyMatrices(transform.matrix, batch.modelMatrix);
+        batch.mesh.setMatrixAt(index, instanceMatrix);
+      }
+    }
+    for (const { mesh, colorIndex } of batches) {
+      mesh.count = counts[colorIndex];
+      mesh.instanceMatrix.needsUpdate = true;
+    }
   }
 
   function draw() {
     if (!loaded || disposed || failed) return;
     syncObjects();
     renderer.render(scene, camera);
+    renderDirty = false;
   }
 
   function animate(time) {
     frame = 0;
     if (disposed || !loaded || failed || document.hidden) return;
-    const delta = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
+    const interval = 1000 / (world.mobile ? 30 : 45);
+    if (lastFrame && time - lastFrame < interval - 1) {
+      frame = requestAnimationFrame(animate);
+      return;
+    }
+    lastFrame = time;
+    const delta = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 1 / 60;
     lastTime = time;
+    const wasMoving = bears.some((bear) => bear.active && !bear.sleeping);
     if (!paused) {
       stepSimulation(bears, world, delta, { pointer });
       if (pointer) {
@@ -97,8 +130,9 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
         pointer.vy *= Math.exp(-14 * delta);
       }
     }
-    draw();
-    if (!paused) frame = requestAnimationFrame(animate);
+    const moving = bears.some((bear) => bear.active && !bear.sleeping);
+    if (renderDirty || wasMoving || moving) draw();
+    if (!paused && (moving || bears.length < world.maxBears || bears.some((bear) => !bear.active))) frame = requestAnimationFrame(animate);
     else lastTime = 0;
   }
 
@@ -109,6 +143,8 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
   function setPaused(value) {
     paused = Boolean(value);
     lastTime = 0;
+    lastFrame = 0;
+    renderDirty = true;
     onPausedChange(paused);
     schedule();
   }
@@ -143,6 +179,10 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
     };
     lastPointer = { x, y, time: now };
     if (event.pointerType !== 'touch' && mouseShake.sample(event.clientX, event.clientY, now)) shake();
+    if (!paused) {
+      renderDirty = true;
+      schedule();
+    }
   }
 
   function clearPointer() {
@@ -172,7 +212,8 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
     camera.top = world.height / 2;
     camera.bottom = -world.height / 2;
     camera.updateProjectionMatrix();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, world.mobile ? 1.25 : 1.5));
+    renderer.transmissionResolutionScale = world.mobile ? 0.35 : 0.5;
     renderer.setSize(bounds.width, bounds.height, false);
     draw();
     schedule();
@@ -182,6 +223,7 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
     cancelAnimationFrame(frame);
     frame = 0;
     lastTime = 0;
+    lastFrame = 0;
     clearPointer();
     if (!document.hidden) schedule();
   }
@@ -226,10 +268,14 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
     const height = box.getSize(new THREE.Vector3()).y;
     if (!Number.isFinite(height) || height <= 0) throw new Error('Modelo de gomita inválido.');
     model.position.sub(box.getCenter(new THREE.Vector3()));
-    sourceModel = new THREE.Group();
+    const sourceModel = new THREE.Group();
     sourceModel.add(model);
     sourceModel.scale.setScalar(1 / height);
     sourceModel.rotation.y = Math.PI;
+    sourceModel.updateMatrixWorld(true);
+    sourceModel.traverse((child) => {
+      if (child.isMesh) modelParts.push({ geometry: child.geometry, matrix: child.matrixWorld.clone() });
+    });
     loaded = true;
     resize();
     onReady();
@@ -259,6 +305,7 @@ export function createGummyScene(canvas, { onReady, onPausedChange, onError, onS
       window.removeEventListener('blur', clearPointer);
       window.removeEventListener('keydown', keyDown);
       canvas.removeEventListener('webglcontextlost', contextLost);
+      batches.forEach(({ mesh }) => mesh.dispose());
       geometries.forEach((geometry) => geometry.dispose());
       sourceMaterials.forEach((material) => material.dispose());
       materials.forEach((material) => material.dispose());
