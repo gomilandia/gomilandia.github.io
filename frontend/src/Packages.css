@@ -289,44 +289,132 @@
 
 @media (max-width: 640px) {
   .packages-section {
-    width: calc(100% - 1.25rem);
-    padding: 1.2rem;
+    width: calc(100% - 1.5rem);
+    margin: 1.5rem auto;
+    padding: clamp(0.85rem, 3.6vw, 1.2rem);
     border-radius: 1.5rem;
   }
 
   .packages-heading {
     align-items: stretch;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1.1rem;
+    margin-bottom: 1.6rem;
+  }
+
+  .packages-eyebrow {
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+  }
+
+  .packages-heading h2 {
+    margin-top: 0.4rem;
+    font-size: clamp(1.75rem, 7.6vw, 2.1rem);
+    line-height: 1.1;
+  }
+
+  .packages-heading > div:first-child > p:last-child {
+    font-size: 0.9375rem;
+    line-height: 1.5;
   }
 
   .package-price {
     align-self: center;
     min-width: min(100%, 15rem);
+    padding: 1rem 1.25rem;
     transform: rotate(0);
   }
 
   .package-groups {
     grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .package-group {
+    padding: 0.875rem;
+    border-radius: 1.2rem;
+  }
+
+  .package-group-heading {
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .package-group-heading h3 {
+    font-size: clamp(1rem, 4.3vw, 1.15rem);
+    line-height: 1.25;
+  }
+
+  .package-group-heading > span {
+    flex: 0 0 auto;
+    max-width: 44%;
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .package-items {
+    column-gap: 0.5rem;
+    row-gap: 0.875rem;
+  }
+
+  .package-item {
+    gap: 0.5rem;
+  }
+
+  .package-item-image {
+    border-radius: 0.85rem;
   }
 
   .package-item-name {
-    font-size: 0.73rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    overflow-wrap: break-word;
+  }
+
+  .package-item-tag {
+    font-size: 0.625rem;
   }
 
   .package-footer {
     align-items: stretch;
     flex-direction: column;
+    gap: 1.1rem;
+    margin-top: 1.4rem;
+  }
+
+  .package-footer .package-custom-note {
+    font-size: 0.9375rem;
+    line-height: 1.5;
   }
 
   .package-cta {
     width: 100%;
+    min-height: 3.25rem;
     box-sizing: border-box;
+    padding: 0.75rem 0.8rem;
+    font-size: 0.9375rem;
   }
 
   .contact-links {
     flex-direction: column;
     align-items: center;
+    gap: 0.75rem;
+  }
+
+  .contact-option {
+    width: min(100%, 20rem);
+    padding: 0;
+    font-size: 0.875rem;
+  }
+
+  .contact-option a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.7rem 1rem;
   }
 }
 

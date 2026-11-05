@@ -1,163 +1,310 @@
 export const BEAR_COUNT = 25;
+export const MOBILE_BEAR_COUNT = 6;
 export const COLOR_NAMES = ['rojo', 'verde', 'naranja', 'amarillo', 'rosa'];
 
-const GRAVITY = 3.3;
-const MAX_STEP = 0.05;
-const BOUNCE_SPEED = 2.5;
-
+const GRAVITY = 7;
+const MAX_FRAME = 0.05;
+const SUBSTEP = 1 / 120;
+const SOLVER_ITERATIONS = 12;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const sample = (random) => clamp(Number(random()) || 0, 0, 1);
+const between = (random, min, max) => min + sample(random) * (max - min);
+const radiusFor = (world) => world.bearSize * 0.46;
+const floorFor = (world) => -world.height / 2 + world.bearSize / 2;
+const limitFor = (world) => Math.max(0, world.width / 2 - world.bearSize / 2);
 
-function seedFor(index) {
-  const value = Math.sin(index * 127.1 + 311.7) * 43758.5453;
-  return value - Math.floor(value);
+function wakeBear(bear) {
+  bear.sleeping = false;
+  bear.sleepTime = 0;
+  bear.disturbed = true;
 }
 
-export function createWorld(pixelWidth, pixelHeight) {
+export function createWorld(pixelWidth, pixelHeight, {
+  mobileBreakpoint = 640,
+  desktopCount = BEAR_COUNT,
+  mobileCount = MOBILE_BEAR_COUNT,
+} = {}) {
   const safeWidth = Number.isFinite(pixelWidth) && pixelWidth > 0 ? pixelWidth : 1;
   const safeHeight = Number.isFinite(pixelHeight) && pixelHeight > 0 ? pixelHeight : 1;
   const height = 12;
   const width = height * safeWidth / safeHeight;
-  const columns = width / height < 0.85 ? 3 : 5;
-  const rows = Math.ceil(BEAR_COUNT / columns);
-  const bearSize = Math.min(1.15, width / columns * 0.72, height / rows * 0.72);
-  return { width, height, bearSize, columns, rows };
+  const mobile = safeWidth <= mobileBreakpoint;
+  const bearCount = Math.max(0, Math.floor(mobile ? mobileCount : desktopCount));
+  const bearSize = Math.min(mobile ? 0.95 : 1.12, width / 4.4);
+  return { width, height, bearSize, bearCount, mobile };
 }
 
-export function createBears(world) {
-  const cellWidth = world.width / world.columns;
-  const cellHeight = world.height / world.rows;
-  const horizontalLimit = Math.max(0, world.width / 2 - world.bearSize * 0.7);
-
-  return Array.from({ length: BEAR_COUNT }, (_, id) => {
-    const seed = seedFor(id);
-    const row = Math.floor(id / world.columns);
-    const column = id % world.columns;
-    const rowCount = Math.min(world.columns, BEAR_COUNT - row * world.columns);
-    const baseX = clamp(
-      cellWidth * (column - (rowCount - 1) / 2) + (seed - 0.5) * cellWidth * 0.2,
-      -horizontalLimit,
-      horizontalLimit,
-    );
-
-    return {
-      id,
-      colorIndex: id % COLOR_NAMES.length,
-      x: baseX,
-      baseX,
-      y: world.height / 2 - cellHeight * (row + 0.5),
-      z: (seed - 0.5) * 0.8,
-      vy: -0.65 - seed * 0.45,
-      rotationX: (seed - 0.5) * 0.4,
-      rotationY: (seed - 0.5) * 0.8,
-      rotationZ: (seed - 0.5) * 0.75,
-      spinX: (seed - 0.5) * 0.45,
-      spinY: (seed > 0.5 ? 1 : -1) * (0.18 + seed * 0.18),
-      spinZ: (seed - 0.5) * 0.35,
-      seed,
-      bounceAmount: 0,
-    };
+function scheduleBear(bear, world, random, delay) {
+  const limit = limitFor(world);
+  Object.assign(bear, {
+    x: between(random, -limit, limit),
+    y: world.height / 2 + world.bearSize * between(random, 0.6, 1.6),
+    z: between(random, -0.15, 0.15),
+    vx: between(random, -0.35, 0.35),
+    vy: between(random, -1.2, -0.5),
+    rotationX: between(random, -0.45, 0.45),
+    rotationY: between(random, -Math.PI, Math.PI),
+    rotationZ: between(random, -0.6, 0.6),
+    spinX: between(random, -0.4, 0.4),
+    spinY: between(random, -0.8, 0.8),
+    spinZ: between(random, -0.65, 0.65),
+    bounceAmount: 0,
+    active: delay <= 0,
+    clearing: false,
+    spawnDelay: Math.max(0, delay),
+    sleeping: false,
+    sleepTime: 0,
+    supported: false,
+    disturbed: false,
   });
 }
 
-export function createScore() {
-  return {
-    visible: false,
-    activeId: null,
-    score: 0,
-    best: 0,
-    lastScore: 0,
-    ended: false,
-  };
+function makeBear(id, world, random, delay) {
+  const bear = { id, colorIndex: id % COLOR_NAMES.length };
+  scheduleBear(bear, world, random, delay);
+  return bear;
 }
 
-export function hitBear(bears, id, scoreState, world) {
-  const bear = bears.find((candidate) => candidate.id === id);
-  if (!bear) return false;
+export function createBears(world, random = Math.random) {
+  return Array.from({ length: world.bearCount }, (_, id) =>
+    makeBear(id, world, random, id === 0 ? 0 : between(random, 0.2, 7.5)));
+}
 
-  if (scoreState.activeId === id && !scoreState.ended) {
-    scoreState.score += 1;
-  } else {
-    if (scoreState.score > 0) scoreState.lastScore = scoreState.score;
-    scoreState.activeId = id;
-    scoreState.score = 1;
+function containBear(bear, world) {
+  const floor = floorFor(world);
+  const limit = limitFor(world);
+  if (bear.x < -limit || bear.x > limit) {
+    bear.x = clamp(bear.x, -limit, limit);
+    if ((bear.x <= -limit && bear.vx < 0) || (bear.x >= limit && bear.vx > 0)) {
+      bear.vx *= -0.22;
+    }
   }
+  if (bear.y <= floor) {
+    bear.y = floor;
+    if (bear.vy < 0) bear.vy = bear.vy < -0.8 ? -bear.vy * 0.18 : 0;
+    bear.supported = true;
+  }
+}
 
-  scoreState.visible = true;
-  scoreState.ended = false;
-  scoreState.best = Math.max(scoreState.best, scoreState.score);
-  bear.y = clamp(bear.y, -world.height / 2 + world.bearSize * 0.7, world.height / 2 - world.bearSize * 0.7);
-  bear.vy = BOUNCE_SPEED;
-  bear.bounceAmount = 1;
-  bear.spinX = 0.55;
-  bear.spinY = (bear.seed > 0.5 ? 1 : -1) * 0.9;
+function collidePair(first, second, world) {
+  const diameter = radiusFor(world) * 2;
+  let dx = second.x - first.x;
+  let dy = second.y - first.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance >= diameter) return;
+  if (first.sleeping && second.sleeping) return;
+  if (distance < 1e-8) {
+    // Coincident centers still need a normal when using a deterministic RNG.
+    dx = first.id < second.id ? 1 : -1;
+    dy = 0;
+  } else {
+    dx /= distance;
+    dy /= distance;
+  }
+  const normalVelocity = (second.vx - first.vx) * dx + (second.vy - first.vy) * dy;
+  if (normalVelocity < -0.35 || diameter - distance > world.bearSize * 0.025) {
+    wakeBear(first);
+    wakeBear(second);
+  }
+  const firstMass = first.sleeping ? 0 : 1;
+  const secondMass = second.sleeping ? 0 : 1;
+  const totalMass = firstMass + secondMass;
+  const correction = (diameter - distance + 1e-6) / totalMass;
+  first.x -= dx * correction * firstMass;
+  first.y -= dy * correction * firstMass;
+  second.x += dx * correction * secondMass;
+  second.y += dy * correction * secondMass;
+
+  if (normalVelocity < 0) {
+    const restitution = normalVelocity < -1.2 ? 0.12 : 0;
+    const impulse = -(1 + restitution) * normalVelocity / totalMass;
+    first.vx -= impulse * dx * firstMass;
+    first.vy -= impulse * dy * firstMass;
+    second.vx += impulse * dx * secondMass;
+    second.vy += impulse * dy * secondMass;
+    const tangentVelocity = (second.vx - first.vx) * -dy + (second.vy - first.vy) * dx;
+    const friction = clamp(tangentVelocity / totalMass, -impulse * 0.35, impulse * 0.35);
+    first.vx += friction * -dy * firstMass;
+    first.vy += friction * dx * firstMass;
+    second.vx -= friction * -dy * secondMass;
+    second.vy -= friction * dx * secondMass;
+  }
+  if (dy > 0.35) second.supported = true;
+  if (dy < -0.35) first.supported = true;
+}
+
+function collidePointer(bear, pointer, world) {
+  if (!pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return;
+  const pointerRadius = Number.isFinite(pointer.radius) && pointer.radius > 0
+    ? pointer.radius : world.bearSize * 0.65;
+  const distance = Math.hypot(bear.x - pointer.x, bear.y - pointer.y);
+  const contactDistance = radiusFor(world) + pointerRadius;
+  if (distance >= contactDistance) return;
+  wakeBear(bear);
+  const pointerVx = clamp(Number(pointer.vx) || 0, -18, 18);
+  const pointerVy = clamp(Number(pointer.vy) || 0, -18, 18);
+  const speed = Math.hypot(pointerVx, pointerVy);
+  const nx = distance > 1e-8 ? (bear.x - pointer.x) / distance : (speed > 0 ? pointerVx / speed : 0);
+  const ny = distance > 1e-8 ? (bear.y - pointer.y) / distance : (speed > 0 ? pointerVy / speed : 1);
+  bear.x += nx * (contactDistance - distance + 1e-5);
+  bear.y += ny * (contactDistance - distance + 1e-5);
+  const relativeVelocity = (bear.vx - pointerVx) * nx + (bear.vy - pointerVy) * ny;
+  if (relativeVelocity < 0) {
+    bear.vx -= relativeVelocity * 1.12 * nx;
+    bear.vy -= relativeVelocity * 1.12 * ny;
+    bear.spinZ += clamp((pointerVx * ny - pointerVy * nx) * 0.12, -1.5, 1.5);
+    bear.bounceAmount = Math.min(1, -relativeVelocity * 0.14);
+  }
+}
+
+function solveContacts(bears, world, pointer, iterations = SOLVER_ITERATIONS) {
+  const solid = bears.filter((bear) => bear.active && !bear.clearing);
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    for (let first = 0; first < solid.length; first++) {
+      for (let second = first + 1; second < solid.length; second++) {
+        collidePair(solid[first], solid[second], world);
+      }
+    }
+    for (const bear of solid) {
+      collidePointer(bear, pointer, world);
+      containBear(bear, world);
+    }
+  }
+}
+
+function updateRest(bears, world, dt) {
+  // A resting body must have a chain of contacts all the way to the floor.
+  // Low speed alone must never freeze a bear at the apex of a bounce.
+  const solid = bears.filter((bear) => bear.active && !bear.clearing)
+    .sort((first, second) => first.y - second.y);
+  const grounded = new Set();
+  const tolerance = world.bearSize * 0.012;
+  const diameter = radiusFor(world) * 2;
+  for (const bear of solid) {
+    const supports = solid.filter((lower) => grounded.has(lower)
+      && bear.y - lower.y > diameter * 0.04
+      && Math.hypot(bear.x - lower.x, bear.y - lower.y) <= diameter + tolerance);
+    // Two shallow contacts on opposite sides also support a body in a gap.
+    // A single nearly horizontal contact must still be allowed to slide down.
+    const supported = bear.y <= floorFor(world) + tolerance
+      || supports.some((lower) => bear.y - lower.y > diameter * 0.25)
+      || (supports.some((lower) => lower.x < bear.x)
+        && supports.some((lower) => lower.x > bear.x));
+    if (supported) grounded.add(bear);
+    if (!supported) {
+      wakeBear(bear);
+      continue;
+    }
+    if (bear.sleeping) continue;
+    const quiet = !bear.disturbed && Math.hypot(bear.vx, bear.vy) < 0.18
+      && Math.hypot(bear.x - bear.previousX, bear.y - bear.previousY) < world.bearSize * 0.003;
+    bear.sleepTime = quiet ? bear.sleepTime + dt : 0;
+    if (bear.sleepTime < 0.9) continue;
+    bear.sleeping = true;
+    bear.vx = 0;
+    bear.vy = 0;
+    bear.spinX = 0;
+    bear.spinY = 0;
+    bear.spinZ = 0;
+    bear.bounceAmount = 0;
+  }
+}
+
+export function stepSimulation(bears, world, deltaTime, {
+  pointer = null,
+  reducedMotion = false,
+  random = Math.random,
+} = {}) {
+  if (!Number.isFinite(deltaTime) || deltaTime <= 0 || reducedMotion) return false;
+  const delta = Math.min(deltaTime, MAX_FRAME);
+  const steps = Math.ceil(delta / SUBSTEP);
+  const dt = delta / steps;
+
+  for (let step = 0; step < steps; step++) {
+    for (const bear of bears) {
+      bear.disturbed = false;
+      bear.previousX = bear.x;
+      bear.previousY = bear.y;
+      if (!bear.active) {
+        bear.spawnDelay -= dt;
+        if (bear.spawnDelay > 0) continue;
+        bear.spawnDelay = 0;
+        bear.active = true;
+      }
+      bear.supported = false;
+      if (bear.sleeping) continue;
+      bear.vy = Math.max(-8, bear.vy - GRAVITY * dt);
+      bear.vx *= Math.exp(-0.12 * dt);
+      bear.x += bear.vx * dt;
+      bear.y += bear.vy * dt;
+      bear.rotationX += bear.spinX * dt;
+      bear.rotationY += bear.spinY * dt;
+      bear.rotationZ += bear.spinZ * dt;
+      bear.bounceAmount *= Math.exp(-10 * dt);
+
+      if (bear.clearing && (
+        Math.abs(bear.x) > world.width / 2 + world.bearSize
+        || bear.y > world.height / 2 + world.bearSize * 2
+        || bear.y < -world.height / 2 - world.bearSize
+      )) {
+        scheduleBear(bear, world, random, between(random, 1.5, 6));
+      }
+    }
+
+    solveContacts(bears, world, pointer);
+    for (const bear of bears) {
+      if (!bear.active || !bear.supported || bear.clearing) continue;
+      const friction = Math.exp(-7 * dt);
+      bear.vx *= friction;
+      bear.spinX *= friction;
+      bear.spinY *= friction;
+      bear.spinZ *= friction;
+      if (Math.abs(bear.vx) < 0.015) bear.vx = 0;
+      if (Math.abs(bear.vy) < 0.015) bear.vy = 0;
+    }
+    updateRest(bears, world, dt);
+  }
   return true;
 }
 
-export function stepSimulation(bears, world, deltaTime, scoreState, { reducedMotion = false } = {}) {
-  if (!Number.isFinite(deltaTime) || deltaTime <= 0) return false;
-  const delta = Math.min(deltaTime, MAX_STEP);
-  const margin = world.bearSize * 0.7;
-  const top = world.height / 2 - margin;
-  const bottom = -world.height / 2 - margin;
-  const horizontalLimit = Math.max(0, world.width / 2 - margin);
-  let scoreChanged = false;
-
+export function shakeBears(bears, world, random = Math.random) {
   for (const bear of bears) {
-    bear.bounceAmount *= Math.exp(-8 * delta);
-    if (bear.bounceAmount < 0.001) bear.bounceAmount = 0;
-
-    // Reduced motion keeps the bears in place and only shows the brief squash
-    // caused by a deliberate click. No automatic fall, spin, or lost streak.
-    if (reducedMotion) {
-      bear.vy = 0;
+    if (!bear.active) {
+      scheduleBear(bear, world, random, between(random, 1.5, 6));
       continue;
     }
-
-    const terminalSpeed = 1.7 + bear.seed * 0.5;
-    bear.vy = Math.max(-terminalSpeed, bear.vy - GRAVITY * delta);
-    bear.y += bear.vy * delta;
-    bear.rotationX += bear.spinX * delta;
-    bear.rotationY += bear.spinY * delta;
-    bear.rotationZ += bear.spinZ * delta;
-    bear.x = clamp(
-      bear.baseX + Math.sin(bear.rotationY * 1.5 + bear.seed * Math.PI * 2) * world.bearSize * 0.16,
-      -horizontalLimit,
-      horizontalLimit,
-    );
-
-    // A clicked bear cannot escape through the ceiling while its streak runs.
-    if (bear.vy > 0 && bear.y > top) {
-      bear.y = top;
-      bear.vy = -Math.abs(bear.vy) * 0.18;
-    }
-
-    if (bear.y < bottom) {
-      if (scoreState.activeId === bear.id) {
-        scoreState.lastScore = scoreState.score;
-        scoreState.score = 0;
-        scoreState.activeId = null;
-        scoreState.ended = true;
-        scoreChanged = true;
-      }
-      // Recycle the same bear and ID, preserving the exact five-per-color count.
-      bear.y = world.height / 2 + margin + bear.seed * 0.4;
-      bear.vy = -0.65 - bear.seed * 0.45;
-      bear.bounceAmount = 0;
-    }
+    wakeBear(bear);
+    const direction = Math.abs(bear.x) > world.bearSize * 0.2
+      ? Math.sign(bear.x) : (sample(random) < 0.5 ? -1 : 1);
+    bear.vx = direction * between(random, 8, 13);
+    bear.vy = between(random, 5, 9);
+    bear.spinX = between(random, -5, 5);
+    bear.spinY = between(random, -6, 6);
+    bear.spinZ = direction * between(random, 3, 7);
+    bear.bounceAmount = 1;
+    bear.clearing = true;
+    bear.supported = false;
   }
-
-  return scoreChanged;
 }
 
-export function resizeWorld(bears, oldWorld, newWorld) {
+export function resizeWorld(bears, oldWorld, newWorld, random = Math.random) {
+  bears.splice(newWorld.bearCount);
   const widthRatio = newWorld.width / oldWorld.width;
   const heightRatio = newWorld.height / oldWorld.height;
-  const limit = Math.max(0, newWorld.width / 2 - newWorld.bearSize * 0.7);
-
   for (const bear of bears) {
-    bear.baseX = clamp(bear.baseX * widthRatio, -limit, limit);
-    bear.x = clamp(bear.x * widthRatio, -limit, limit);
+    wakeBear(bear);
+    bear.x *= widthRatio;
     bear.y *= heightRatio;
+    bear.vx *= widthRatio;
     bear.vy *= heightRatio;
+    if (!bear.clearing) {
+      bear.x = clamp(bear.x, -limitFor(newWorld), limitFor(newWorld));
+      if (bear.active) containBear(bear, newWorld);
+      else bear.y = newWorld.height / 2 + newWorld.bearSize;
+    }
   }
+  while (bears.length < newWorld.bearCount) {
+    bears.push(makeBear(bears.length, newWorld, random, between(random, 0.3, 6)));
+  }
+  solveContacts(bears, newWorld, null, 40);
 }

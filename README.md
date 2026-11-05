@@ -1,6 +1,6 @@
 # Gomilandia
 
-Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. Incluye una lluvia interactiva de 25 ositos Three.js sobre toda la página: cinco de cada color.
+Página de catering de gomitas y snacks para fiestas y eventos, con React, Vite y Tailwind. Incluye una lluvia de ositos Three.js que chocan con el puntero y se acumulan en la parte baja de la pantalla: 25 en escritorio y 6 en móvil.
 
 ## Desarrollo
 
@@ -12,13 +12,15 @@ npm ci
 npm run dev
 ```
 
-La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm test` comprueba la física y las reglas de puntuación; `npm run build` genera `frontend/dist/`. `npm run preview` permite revisar esa compilación.
+La vista local se abre en la dirección que imprime Vite (puerto 4317). `npm test` comprueba la física, las colisiones y el despeje de los ositos; `npm run build` genera `frontend/dist/`. `npm run preview` permite revisar esa compilación.
 
-## Juego
+## Lluvia de ositos
 
-Los ositos caen y giran automáticamente. Un clic o toque los hace rebotar y abre el marcador. Solo los clics consecutivos en el mismo osito suman a la racha actual. Cambiar de osito inicia una nueva racha; dejar caer el osito seleccionado la termina y conserva el récord de la sesión.
+Los ositos aparecen desde arriba en posiciones e intervalos aleatorios. Chocan con el puntero, entre sí y con el piso de la pantalla, donde se van acumulando. Son decorativos: no hay marcador ni acciones al hacer clic y los enlaces de la página permanecen disponibles.
 
-El marcador aparece solo al tocar un osito y puede cerrarse para ocultar el juego. Incluye un botón de rebote para continuar con teclado y un control de pausa. La lluvia se detiene cuando se oculta la pestaña. Si se solicita movimiento reducido, comienza en pausa y se activa al tocar un osito.
+Para despejarlos, mueve el mouse rápidamente de un lado a otro, pulsa la barra espaciadora o usa «Agitar». En móvil, agita el teléfono; si el navegador solicita permiso, pulsa «Activar movimiento» y autoriza el sensor. El botón «Limpiar ositos» también funciona sin sensores o si no se concede el permiso. La sacudida despeja los ositos y una nueva lluvia comienza desde arriba.
+
+El control «Pausar» detiene la lluvia; también se detiene al ocultar la pestaña. Si se solicita movimiento reducido, comienza en pausa y la página no muestra la animación de sacudida. Los sensores de movimiento requieren un contexto seguro (HTTPS o localhost) y su disponibilidad depende del dispositivo y el navegador.
 
 ## Publicación
 
@@ -28,7 +30,7 @@ Sitio: [gomilandia.party](https://gomilandia.party/).
 
 ## Paquetes
 
-Edita `frontend/src/data/package.json` para actualizar el paquete, sus precios, el código de país, los teléfonos de contacto y las opciones de cada grupo. Ambos teléfonos aparecen como enlaces para WhatsApp y llamada. Las imágenes se indican con rutas relativas a `frontend/src/assets/images/`; cuando una opción no tiene foto, se muestra su emoji. En snacks salados, `included: true` marca los dos productos incluidos.
+Edita `frontend/src/data/package.json` para actualizar el paquete, sus precios, el código de país, los teléfonos de contacto y las opciones de cada grupo. Ambos teléfonos aparecen como enlaces para WhatsApp. Las imágenes se indican con rutas relativas a `frontend/src/assets/images/`; cuando una opción no tiene foto, se muestra su emoji. En snacks salados, `included: true` marca los dos productos incluidos.
 
 ## Galería
 

@@ -66,11 +66,34 @@
 @media (max-width: 720px) {
   .showcase-section {
     width: calc(100% - 1.5rem);
-    margin: 1.25rem auto;
+    margin: 1.5rem auto;
+  }
+
+  .showcase-heading {
+    margin-bottom: 1rem;
+    padding-inline: 0.25rem;
+  }
+
+  .showcase-heading h2 {
+    margin-top: 0.4rem;
+    font-size: clamp(1.4rem, 6.5vw, 1.75rem);
+    line-height: 1.15;
+  }
+
+  .showcase-heading > p:last-child {
+    max-width: 21rem;
+    margin: 0.5rem auto 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  .showcase-grid {
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
   }
 
   .showcase-photo {
-    flex-basis: min(72vw, 16rem);
+    flex-basis: min(82vw, 20rem);
     border-radius: 1rem;
   }
 }

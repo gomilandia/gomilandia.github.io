@@ -56,17 +56,17 @@ export default function App() {
             <span className="brand-letter--red">ia</span>
           </span>
         </h1>
-        <p className="mt-4 text-xl md:text-2xl font-medium max-w-2xl mx-auto drop-shadow-sm">
+        <p className="hero-copy mt-4 text-xl md:text-2xl font-medium max-w-2xl mx-auto drop-shadow-sm">
           ¡Las barras de gomitas y snacks más coloridas y deliciosas para tus fiestas infantiles!
         </p>
-        <p className="mt-3 text-sm md:text-base font-semibold drop-shadow-sm">
+        <p className="hero-location mt-3 text-sm md:text-base font-semibold drop-shadow-sm">
           📍 Servicio en Cuernavaca, Jiutepec y aledaños
         </p>
         <a 
           href={whatsappLink}
           target="_blank"
           rel="noopener noreferrer" 
-          className="mt-8 inline-block bg-white text-purple-600 font-bold px-8 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
+          className="hero-cta mt-8 inline-block bg-white text-purple-600 font-bold px-8 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
         >
           📱 Cotizar por WhatsApp
         </a>
@@ -164,7 +164,7 @@ export default function App() {
       </section>
 
       {/* Footer / Contacto */}
-      <footer className="bg-gray-900 text-gray-400 text-center py-10 mt-16 px-4">
+      <footer className="site-footer bg-gray-900 text-gray-400 text-center py-10 mt-16 px-4">
         <p className="text-white font-bold text-lg">Gomilandia © 2026</p>
         <p className="text-sm mt-2">Haciendo tus eventos más dulces.</p>
         <p className="mx-auto mt-4 max-w-xl px-2 text-sm leading-relaxed">
